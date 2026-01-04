@@ -24,12 +24,12 @@ A unique asymmetric chess variant built with Python and Pygame. Play as the lone
 
 **Angels & Demons** is an innovative chess variant featuring asymmetric gameplay:
 
-- **Angels (White):** Control a single King that spawns pawns with every move. Your goal is to reach the opposite side of the board.
+- **Angels (White):** Control a single King that can spawn pawns adjacent to itself. Your goal is to reach the opposite side of the board.
 - **Demons (Black):** Command 2 Rooks, 2 Knights, and 2 Bishops. Your goal is to capture the Angel King.
 
 The Angel King possesses unique abilities:
-1. **Pawn Spawning:** Every time the King moves, a pawn automatically appears on the square it left
-2. **Pawn Removal:** Right-click any of your pawns to remove them instantly without losing a turn
+1. **Pawn Placement:** Right-click the King to place a pawn on any adjacent empty square (counts as one move)
+2. **Normal Movement:** The King and pawns can move normally according to chess rules
 
 This creates deep strategic gameplay where resource management and tactical planning are crucial!
 
@@ -82,8 +82,11 @@ That's it! The game window should open and you're ready to play.
 
 1. Run `python ChessMain.py`
 2. Angels (White) move first
-3. Click a piece to select it, then click a highlighted square to move
-4. Right-click on White pawns to remove them (Angels only)
+3. **Angels Turn Options:**
+   - Left-click the King to move it normally, OR
+   - Left-click a pawn to move it forward/diagonally (attack), OR
+   - Right-click the King, then click an adjacent square to place a new pawn
+4. **Demons Turn:** Left-click any piece to select, then click a valid square to move
 5. Angels win by reaching the top row, Demons win by capturing the King
 
 ### Detailed Rules
@@ -112,8 +115,9 @@ For comprehensive gameplay instructions, strategies, and tactics, see **[GAMEPLA
 ### Special Abilities
 
 **Angel King:**
-- Spawns a pawn on every square it moves from
-- Can remove pawns with right-click (doesn't use a turn)
+- Can place a pawn on any adjacent empty square (right-click King, then click adjacent square)
+- Pawn placement counts as one move and ends the turn
+- Pawns move forward and attack diagonally like normal chess pawns
 
 **Demon Pieces:**
 - All move according to standard chess rules
@@ -125,42 +129,33 @@ For comprehensive gameplay instructions, strategies, and tactics, see **[GAMEPLA
 
 | Action | Control |
 |--------|---------|
-| Select/Move piece | Left-click |
-| Remove pawn (Angels only) | Right-click on pawn |
+| Select/Move piece | Left-click piece, then left-click destination |
+| Place pawn (Angels only) | Right-click King, then left-click adjacent empty square |
+| Cancel pawn placement | Press SPACE or click elsewhere |
 
 ### Keyboard
 
 | Key | Action |
 |-----|--------|
+| `SPACE` | Skip pawn placement (when in pawn placement mode) |
 | `R` | Restart game (when game over) |
 | `ESC` | Quit game |
 
 ## 📸 Screenshots
 
-### Game Start
-```
-  R  N  B  -  -  B  N  R   ← Demons
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  K  -  -  -  -   ← Angels
-```
+### Gameplay
 
-### Mid-Game (Pawns Spawning)
-```
-  R  N  B  -  -  B  N  R
-  -  -  -  -  -  -  -  -
-  -  P  -  -  -  -  -  -
-  P  K  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  -  -  -  -  -
-  -  -  -  P  -  -  -  -
-```
-The King has moved, leaving pawns in its wake!
+![Angels & Demons Gameplay](screenshot.png)
+
+*Mid-game showing Angels (White) with King and pawns vs Demons (Black) with Rooks, Knights, and Bishops. Notice the colored halos around pieces for better visibility!*
+
+**Key Visual Features:**
+- 🟡 **Gold halos** around White pieces (Angels)
+- 🔴 **Red halos** around Black pieces (Demons)
+- 🟢 **Green highlights** show where you can place pawns (when King is right-clicked)
+- 🔵 **Blue highlights** show valid moves for selected pieces
+- Dynamic turn indicator at the top
+- Context-aware instructions at the bottom
 
 ## 🛠️ Development
 
