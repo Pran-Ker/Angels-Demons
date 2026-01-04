@@ -648,7 +648,8 @@ def main(WIN, WIDTH):
                             king_position = None
                             deselect()
                             remove_highlight(grid)
-                            print(f"Pawn placed at ({x}, {y})")
+                            moves += 1  # Pawn placement counts as a move
+                            print(f"Pawn placed at ({x}, {y}) - White's turn ended")
                         else:
                             print("Can't place pawn on occupied square!")
                     else:
