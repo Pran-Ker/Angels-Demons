@@ -19,6 +19,10 @@ class Piece:
         self.image = image
 
 
+## Constants for piece rendering
+PIECE_SCALE = 0.85  # Scale pieces to 85% of square size
+SQUARE_SIZE = 100  # Will be calculated based on WIDTH
+
 ## Creates instances of chess pieces with correct image paths
 bp = Piece('b', 'p', 'images/bP.png')
 wp = Piece('w', 'p', 'images/wP.png')
@@ -32,6 +36,9 @@ bq = Piece('b', 'q', 'images/bQ.png')
 wq = Piece('w', 'q', 'images/wQ.png')
 bkn = Piece('b', 'kn', 'images/bN.png')
 wkn = Piece('w', 'kn', 'images/wN.png')
+
+## Dictionary to cache scaled images
+scaled_images = {}
 
 
 ## Angels-Demons starting position
@@ -272,13 +279,53 @@ def knight_moves(index):
 
 
 WIDTH = 800
+SQUARE_SIZE = WIDTH // 8
+TOP_BAR_HEIGHT = 50
+BOTTOM_BAR_HEIGHT = 50
+TOTAL_HEIGHT = WIDTH + TOP_BAR_HEIGHT + BOTTOM_BAR_HEIGHT
 
-WIN = pygame.display.set_mode((WIDTH, WIDTH))
+WIN = pygame.display.set_mode((WIDTH, TOTAL_HEIGHT))  # Extra space for UI
 
 """ This is creating the window that we are playing on, it takes a tuple argument which is the dimensions of the window so in this case 800 x 800px
 """
 
 pygame.display.set_caption("Angels & Demons")
+
+
+def load_and_scale_image(image_path, size):
+    """Load image and scale it to specified size with border"""
+    if image_path in scaled_images:
+        return scaled_images[image_path]
+
+    img = pygame.image.load(image_path)
+    piece_size = int(size * PIECE_SCALE)
+    img = pygame.transform.scale(img, (piece_size, piece_size))
+    scaled_images[image_path] = img
+    return img
+
+
+def draw_piece_with_border(win, image_path, x, y, size, team):
+    """Draw piece with colored border for better visibility"""
+    piece_size = int(size * PIECE_SCALE)
+    offset = (size - piece_size) // 2
+
+    # Draw colored background circle for better visibility
+    center_x = x + size // 2
+    center_y = y + size // 2
+    radius = piece_size // 2 + 3
+
+    if team == 'w':
+        # White pieces: gold background
+        pygame.draw.circle(win, GOLD, (center_x, center_y), radius + 2)
+        pygame.draw.circle(win, (255, 255, 255), (center_x, center_y), radius)
+    else:
+        # Black pieces: red background
+        pygame.draw.circle(win, DARK_RED, (center_x, center_y), radius + 2)
+        pygame.draw.circle(win, (40, 40, 40), (center_x, center_y), radius)
+
+    # Draw the piece image
+    img = load_and_scale_image(image_path, size)
+    win.blit(img, (x + offset, y + offset))
 WHITE = (255, 255, 255)
 GREY = (128, 128, 128)
 YELLOW = (204, 204, 0)
@@ -296,24 +343,24 @@ class Node:
         self.row = row
         self.col = col
         self.x = int(row * width)
-        self.y = int(col * width)
+        self.y = int(col * width) + TOP_BAR_HEIGHT  # Offset for top bar
         self.colour = WHITE
         self.occupied = None
 
     def draw(self, WIN):
         pygame.draw.rect(WIN, self.colour, (self.x, self.y, WIDTH / 8, WIDTH / 8))
 
-    def setup(self, WIN):
-        if starting_order[(self.row, self.col)]:
-            if starting_order[(self.row, self.col)] == None:
-                pass
-            else:
-                WIN.blit(starting_order[(self.row, self.col)], (self.x, self.y))
+    def setup(self, WIN, board):
+        """Draw pieces with enhanced visibility"""
+        row_idx = self.col
+        col_idx = self.row
 
-        """
-        For now it is drawing a rectangle but eventually we are going to need it
-        to use blit to draw the chess pieces instead
-        """
+        try:
+            piece = board[row_idx][col_idx]
+            if piece != '  ' and hasattr(piece, 'image'):
+                draw_piece_with_border(WIN, piece.image, self.x, self.y, SQUARE_SIZE, piece.team)
+        except:
+            pass
 
 
 def make_grid(rows, width):
@@ -337,26 +384,26 @@ I've put them into a 2d array which is identical to the dimesions of the chessbo
 def draw_grid(win, rows, width):
     gap = width // 8
     for i in range(rows):
-        pygame.draw.line(win, BLACK, (0, i * gap), (width, i * gap))
+        pygame.draw.line(win, BLACK, (0, i * gap + TOP_BAR_HEIGHT), (width, i * gap + TOP_BAR_HEIGHT))
         for j in range(rows):
-            pygame.draw.line(win, BLACK, (j * gap, 0), (j * gap, width))
+            pygame.draw.line(win, BLACK, (j * gap, TOP_BAR_HEIGHT), (j * gap, width + TOP_BAR_HEIGHT))
 
     """
     The nodes are all white so this we need to draw the grey lines that separate all the chess tiles
     from each other and that is what this function does"""
 
 
-def update_display(win, grid, rows, width, moves=0, game_over=False, winner=None):
+def update_display(win, grid, rows, width, board, moves=0, game_over=False, winner=None, game_state=None):
     for row in grid:
         for spot in row:
             spot.draw(win)
-            spot.setup(win)
+            spot.setup(win, board)
     draw_grid(win, rows, width)
 
     ## Draw UI elements
     if not game_over:
         draw_turn_indicator(win, width, moves)
-        draw_instructions(win, width)
+        draw_instructions(win, width, moves, game_state)
 
     pygame.display.update()
 
@@ -368,6 +415,9 @@ def update_display(win, grid, rows, width, moves=0, game_over=False, winner=None
 def Find_Node(pos, WIDTH):
     interval = WIDTH / 8
     y, x = pos
+    x = x - TOP_BAR_HEIGHT  # Adjust for top bar offset
+    if x < 0:  # Click was in top bar area
+        return -1, -1
     rows = y // interval
     columns = x // interval
     return int(rows), int(columns)
@@ -495,10 +545,24 @@ def draw_turn_indicator(WIN, WIDTH, moves):
     draw_text(turn_text, 32, turn_color, WIN, WIDTH // 2, 20)
 
 
-def draw_instructions(WIN, WIDTH):
-    """Draw instructions at the bottom"""
-    instructions = "Right-click to remove pawns | Angels win by reaching top row"
-    draw_text(instructions, 20, LIGHT_BLUE, WIN, WIDTH // 2, WIDTH - 15)
+def draw_instructions(WIN, WIDTH, moves, game_state=None):
+    """Draw dynamic instructions at the bottom based on game state"""
+    # Create instruction bar background
+    instruction_y = WIDTH + TOP_BAR_HEIGHT
+    pygame.draw.rect(WIN, DARK_GREY, (0, instruction_y, WIDTH, BOTTOM_BAR_HEIGHT))
+
+    if moves % 2 == 0:  # White's turn
+        if game_state == "awaiting_pawn_placement":
+            instructions = "Click adjacent square to place pawn (or press SPACE to skip)"
+            color = GOLD
+        else:
+            instructions = "Angels: Move King or pawns | Right-click King to place pawn nearby"
+            color = LIGHT_BLUE
+    else:  # Black's turn
+        instructions = "Demons: Move any piece | Capture the White King to win!"
+        color = LIGHT_BLUE
+
+    draw_text(instructions, 22, color, WIN, WIDTH // 2, instruction_y + 25)
 
 
 create_board(board)
@@ -507,13 +571,16 @@ create_board(board)
 def main(WIN, WIDTH):
     moves = 0
     selected = False
-    piece_to_move=[]
+    piece_to_move = []
     grid = make_grid(8, WIDTH)
     game_over = False
     winner = None
+    pawn_placement_mode = False
+    king_position = None
+    game_state = None
 
     while True:
-        pygame.time.delay(50) ##stops cpu dying
+        pygame.time.delay(50)  # stops cpu dying
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
@@ -521,56 +588,99 @@ def main(WIN, WIDTH):
 
             """This quits the program if the player closes the window"""
 
-            ## Keyboard controls for game over
+            ## Keyboard controls
             if event.type == pygame.KEYDOWN:
                 if game_over and event.key == pygame.K_r:  ## Restart
                     return main(WIN, WIDTH)  ## Restart the game
                 if event.key == pygame.K_ESCAPE:  ## Quit
                     pygame.quit()
                     sys.exit()
+                if event.key == pygame.K_SPACE and pawn_placement_mode:  ## Skip pawn placement
+                    pawn_placement_mode = False
+                    game_state = None
+                    king_position = None
+                    deselect()
+                    remove_highlight(grid)
+                    print("Skipped pawn placement")
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3 and not game_over:  ## Right-click
-                """Right-click to remove white pawns (Angels' special ability)"""
+                """Right-click on White King to enter pawn placement mode"""
                 pos = pygame.mouse.get_pos()
                 y, x = Find_Node(pos, WIDTH)
-                try:
-                    if board[x][y].team == 'w' and board[x][y].type == 'p':
-                        board[x][y] = '  '
-                        starting_order[(y, x)] = None
-                        deselect()
-                        remove_highlight(grid)
-                        selected = False
-                        print("Pawn removed!")
-                except:
-                    pass
+
+                if moves % 2 == 0:  # White's turn only
+                    try:
+                        if board[x][y].team == 'w' and board[x][y].type == 'k':
+                            # Enter pawn placement mode
+                            pawn_placement_mode = True
+                            game_state = "awaiting_pawn_placement"
+                            king_position = (x, y)
+                            deselect()
+                            remove_highlight(grid)
+                            selected = False
+
+                            # Highlight adjacent squares for pawn placement
+                            for dy in range(-1, 2):
+                                for dx in range(-1, 2):
+                                    if dy == 0 and dx == 0:
+                                        continue
+                                    new_row, new_col = x + dy, y + dx
+                                    if on_board((new_row, new_col)) and board[new_row][new_col] == '  ':
+                                        grid[new_row][new_col].colour = GREEN
+                            print("Pawn placement mode activated! Click adjacent square to place pawn.")
+                    except:
+                        pass
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not game_over:  ## Left-click
                 pos = pygame.mouse.get_pos()
                 y, x = Find_Node(pos, WIDTH)
+
+                # Handle pawn placement mode
+                if pawn_placement_mode:
+                    kx, ky = king_position
+                    # Check if click is adjacent to king
+                    if abs(x - kx) <= 1 and abs(y - ky) <= 1 and (x != kx or y != ky):
+                        if board[x][y] == '  ':
+                            # Place pawn
+                            spawn_pawn((x, y), board)
+                            pawn_placement_mode = False
+                            game_state = None
+                            king_position = None
+                            deselect()
+                            remove_highlight(grid)
+                            print(f"Pawn placed at ({x}, {y})")
+                        else:
+                            print("Can't place pawn on occupied square!")
+                    else:
+                        # Cancel pawn placement mode
+                        pawn_placement_mode = False
+                        game_state = None
+                        king_position = None
+                        deselect()
+                        remove_highlight(grid)
+                        print("Pawn placement cancelled")
+                    continue
+
+                # Normal piece selection and movement
                 if selected == False:
                     try:
-                        possible = select_moves((board[x][y]), (x,y), moves)
+                        possible = select_moves((board[x][y]), (x, y), moves)
                         for positions in possible:
                             row, col = positions
                             grid[row][col].colour = BLUE
-                        piece_to_move = x,y
+                        piece_to_move = x, y
                         selected = True
                     except:
                         piece_to_move = []
                         print('Can\'t select')
-                    #print(piece_to_move)
 
                 else:
                     try:
                         if board[x][y].killable == True:
-                            row, col = piece_to_move ## coords of original piece
+                            row, col = piece_to_move  ## coords of original piece
                             moved_piece = board[row][col]
                             board[x][y] = moved_piece
                             board[row][col] = '  '
-
-                            ## Spawn pawn if King moved (Angels special ability)
-                            if moved_piece.team == 'w' and moved_piece.type == 'k':
-                                spawn_pawn((row, col), board)
 
                             deselect()
                             remove_highlight(grid)
@@ -599,10 +709,6 @@ def main(WIN, WIDTH):
                             board[x][y] = moved_piece
                             board[row][col] = '  '
 
-                            ## Spawn pawn if King moved (Angels special ability)
-                            if moved_piece.team == 'w' and moved_piece.type == 'k':
-                                spawn_pawn((row, col), board)
-
                             deselect()
                             remove_highlight(grid)
                             Do_Move((col, row), (y, x), WIN)
@@ -625,7 +731,7 @@ def main(WIN, WIDTH):
                             print("Invalid move")
                     selected = False
 
-            update_display(WIN, grid, 8, WIDTH, moves, game_over, winner)
+            update_display(WIN, grid, 8, WIDTH, board, moves, game_over, winner, game_state)
 
 
 main(WIN, WIDTH)
